@@ -1,0 +1,10 @@
+# Log files
+logs/
+
+# Docker data volumes
+influxdb/data/
+grafana/data/
+
+# Python cache
+__pycache__/
+*.pyc
