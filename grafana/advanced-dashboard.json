@@ -1,0 +1,90 @@
+{
+  "dashboard": {
+    "title": "API Monitoring & Alerting Dashboard",
+    "tags": ["api", "monitoring", "logs"],
+    "timezone": "browser",
+    "refresh": "5s",
+    "time": {
+      "from": "now-15m",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "title": "🚀 Real-time Request Volume",
+        "type": "timeseries",
+        "query": "from(bucket: \"my-bucket\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"api_logs\") |> aggregateWindow(every: v.windowPeriod, fn: count, createEmpty: false) |> yield(name: \"requests_per_second\")",
+        "description": "Live stream of API requests per time window"
+      },
+      {
+        "title": "⚡ Response Time Distribution",
+        "type": "histogram",
+        "query": "from(bucket: \"my-bucket\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"api_logs\" and r._field == \"latency_ms\") |> histogram(bins: [0, 100, 250, 500, 1000, 2000])",
+        "description": "Distribution of response times across different latency buckets"
+      },
+      {
+        "title": "🎯 Success vs Error Rates",
+        "type": "piechart",
+        "query": "from(bucket: \"my-bucket\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"api_logs\") |> group(columns: [\"status_code\"]) |> count() |> group() |> map(fn: (r) => ({r with status_category: if r.status_code < \"400\" then \"Success\" else \"Error\"}))",
+        "description": "Breakdown of successful vs failed requests"
+      },
+      {
+        "title": "🔥 Top API Endpoints",
+        "type": "barchart",
+        "query": "from(bucket: \"my-bucket\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"api_logs\") |> group(columns: [\"api\"]) |> count() |> group() |> sort(columns: [\"_value\"], desc: true) |> limit(n: 10)",
+        "description": "Most frequently accessed API endpoints"
+      },
+      {
+        "title": "⚠️ Error Rate Over Time",
+        "type": "timeseries",
+        "query": "from(bucket: \"my-bucket\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"api_logs\") |> aggregateWindow(every: v.windowPeriod, fn: count) |> group(columns: [\"status_code\"]) |> map(fn: (r) => ({r with is_error: if r.status_code >= \"400\" then r._value else 0})) |> sum(column: \"is_error\")",
+        "thresholds": [
+          {"value": 30, "color": "yellow"},
+          {"value": 50, "color": "red"}
+        ],
+        "description": "Track error rates with alert thresholds"
+      },
+      {
+        "title": "📊 P95 Response Time",
+        "type": "stat",
+        "query": "from(bucket: \"my-bucket\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"api_logs\" and r._field == \"latency_ms\") |> quantile(q: 0.95)",
+        "thresholds": [
+          {"value": 1000, "color": "green"},
+          {"value": 1500, "color": "yellow"},
+          {"value": 2000, "color": "red"}
+        ],
+        "unit": "ms",
+        "description": "95th percentile response time with SLA thresholds"
+      },
+      {
+        "title": "🌊 Request Volume Heatmap",
+        "type": "heatmap",
+        "query": "from(bucket: \"my-bucket\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"api_logs\") |> group(columns: [\"api\", \"method\"]) |> aggregateWindow(every: v.windowPeriod, fn: count)",
+        "description": "Visualize request patterns across endpoints and methods"
+      },
+      {
+        "title": "🎭 Status Code Distribution",
+        "type": "barchart",
+        "query": "from(bucket: \"my-bucket\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"api_logs\") |> group(columns: [\"status_code\"]) |> count() |> group() |> sort(columns: [\"_value\"], desc: true)",
+        "description": "Distribution of HTTP status codes"
+      }
+    ],
+    "alerting": {
+      "rules": [
+        {
+          "name": "High Error Rate",
+          "query": "error_rate_query",
+          "condition": "> 30",
+          "frequency": "1m",
+          "notification": "webhook"
+        },
+        {
+          "name": "High Latency",
+          "query": "p95_latency_query", 
+          "condition": "> 1500",
+          "frequency": "1m",
+          "notification": "webhook"
+        }
+      ]
+    }
+  }
+}

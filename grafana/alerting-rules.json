@@ -1,0 +1,40 @@
+{
+  "alerts": [
+    {
+      "name": "High Error Rate Alert",
+      "description": "Triggers when error rate exceeds 30% in 5 minutes",
+      "query": "from(bucket: \"my-bucket\") |> range(start: -5m) |> filter(fn: (r) => r._measurement == \"api_logs\") |> group(columns: [\"status_code\"]) |> count() |> group() |> map(fn: (r) => ({r with error_rate: if r.status_code >= \"400\" then r._value else 0})) |> sum(column: \"error_rate\") |> map(fn: (r) => ({r with total_requests: r._value})) |> yield()",
+      "threshold": 30,
+      "severity": "critical"
+    },
+    {
+      "name": "High Latency Alert",
+      "description": "Triggers when P95 latency exceeds 1500ms",
+      "query": "from(bucket: \"my-bucket\") |> range(start: -5m) |> filter(fn: (r) => r._measurement == \"api_logs\" and r._field == \"latency_ms\") |> quantile(q: 0.95)",
+      "threshold": 1500,
+      "severity": "warning"
+    },
+    {
+      "name": "API Endpoint Down",
+      "description": "Triggers when no requests to critical endpoints in 2 minutes",
+      "query": "from(bucket: \"my-bucket\") |> range(start: -2m) |> filter(fn: (r) => r._measurement == \"api_logs\" and (r.api == \"/health\" or r.api == \"/login\")) |> count()",
+      "threshold": 0,
+      "severity": "critical"
+    },
+    {
+      "name": "Unusual Traffic Spike",
+      "description": "Triggers when request volume is 3x higher than normal",
+      "query": "from(bucket: \"my-bucket\") |> range(start: -10m) |> filter(fn: (r) => r._measurement == \"api_logs\") |> aggregateWindow(every: 1m, fn: count) |> movingAverage(n: 5)",
+      "threshold": 100,
+      "severity": "warning"
+    }
+  ],
+  "notification_channels": [
+    {
+      "name": "console_alerts",
+      "type": "webhook",
+      "url": "http://localhost:8080/alerts",
+      "description": "Send alerts to console webhook"
+    }
+  ]
+}
